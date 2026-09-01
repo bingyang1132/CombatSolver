@@ -57,6 +57,15 @@ internal sealed record SolverSettingsData
     public SolverSearchCompletionNotificationMode SearchCompletionNotificationMode { get; init; }
         = SolverSearchCompletionNotificationMode.OnlyWhenGameInBackground;
     public SolverPotionPolicy PotionPolicy { get; init; } = SolverPotionPolicy.Smart;
+
+    /// <summary>Prefer routes that land a fatal kill with Hand of Greed, The Hunt or Feed.</summary>
+    public bool PursueFatalKillBonus { get; init; }
+
+    /// <summary>Prefer routes that play a permanently growing deck card: Genetic Algorithm, The Scythe, Royalties.</summary>
+    public bool PursuePersistentGrowth { get; init; }
+
+    /// <summary>How much HP the route may pay for each pursued goal it banks. Null uses the default.</summary>
+    public int? LongTermGoalHpBudget { get; init; }
     public SolverPerformancePreset? PerformancePreset { get; init; }
     public int? SearchMaxDegreeOfParallelism { get; init; }
     public double? ShortTimeLimitSeconds { get; init; }
@@ -93,6 +102,8 @@ internal sealed record SolverSettingsSnapshot(
     bool StopFullAutoOnWorseRecalculation,
     bool EnableDetailedDiagnosticLogs,
     SolverPotionPolicy PotionPolicy,
+    LongTermGoals PursuedLongTermGoals,
+    int LongTermGoalHpBudget,
     int SearchMaxDegreeOfParallelism,
     SolverSearchProfile ShortProfile,
     SolverSearchProfile DeepProfile,
@@ -200,6 +211,8 @@ internal static class SolverSettings
             $"search_notifications_enabled={loaded.SearchCompletionNotificationsEnabled} " +
             $"search_notification_mode={loaded.SearchCompletionNotificationMode} " +
             $"potion_policy={loaded.PotionPolicy} " +
+            $"pursued_long_term_goals={ResolvePursuedLongTermGoals(loaded)} " +
+            $"long_term_goal_hp_budget={loaded.LongTermGoalHpBudget ?? SolverWeights.DefaultLongTermGoalHpBudget} " +
             $"performance_preset={ResolvePerformancePreset(loaded)} " +
             $"max_dop={Capture().SearchMaxDegreeOfParallelism} " +
             $"short_budget_ms={Capture().ShortProfile.SoftTimeBudgetMilliseconds} " +
@@ -228,6 +241,8 @@ internal static class SolverSettings
             data.StopFullAutoOnWorseRecalculation,
             data.EnableDetailedDiagnosticLogs,
             data.PotionPolicy,
+            ResolvePursuedLongTermGoals(data),
+            data.LongTermGoalHpBudget ?? SolverWeights.DefaultLongTermGoalHpBudget,
             data.SearchMaxDegreeOfParallelism
                 ?? SolverWeights.DefaultSearchMaxDegreeOfParallelism,
             shortProfile,
@@ -235,6 +250,16 @@ internal static class SolverSettings
             noGcBytes,
             data.DeploymentFastMode,
             data.DeploymentInterActionDelaySeconds ?? 0d);
+    }
+
+    public static LongTermGoals ResolvePursuedLongTermGoals(SolverSettingsData data)
+    {
+        LongTermGoals goals = LongTermGoals.None;
+        if (data.PursueFatalKillBonus)
+            goals |= LongTermGoals.FatalKillBonus;
+        if (data.PursuePersistentGrowth)
+            goals |= LongTermGoals.PersistentGrowth;
+        return goals;
     }
 
     public static SolverPerformancePreset ResolvePerformancePreset(SolverSettingsData data)
@@ -393,6 +418,12 @@ internal static class SolverSettings
         }
         if (!Enum.IsDefined(data.PotionPolicy))
             throw new InvalidDataException($"Unknown potion policy {data.PotionPolicy}.");
+        if (data.LongTermGoalHpBudget is { } goalBudget
+            && (goalBudget < 0 || goalBudget > SolverWeights.MaximumLongTermGoalHpBudget))
+        {
+            throw new InvalidDataException(
+                $"Long term goal HP budget {goalBudget} is outside 0..{SolverWeights.MaximumLongTermGoalHpBudget}.");
+        }
         ValidateRange(data.DeploymentInterActionDelaySeconds, 0d, 3d,
             nameof(data.DeploymentInterActionDelaySeconds));
         if (data.PerformancePreset is { } performancePreset && !Enum.IsDefined(performancePreset))

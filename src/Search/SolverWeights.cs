@@ -69,6 +69,14 @@ internal static class SolverWeights
     public const int EliteSoldHpThreshold = 10;
     public const int BossSoldHpThreshold = 15;
     public const int PotionMinimumHpSaved = 9;
+
+    /// <summary>
+    /// HP a route may pay for each pursued long term goal it banks. Deliberately smaller than
+    /// <see cref="PotionMinimumHpSaved"/>: a banked goal is worth less than a potion, and Prefer must never turn
+    /// into "trade the fight for a Hand of Greed kill".
+    /// </summary>
+    public const int DefaultLongTermGoalHpBudget = 4;
+    public const int MaximumLongTermGoalHpBudget = 20;
     // This is the minimum cross-turn no-progress horizon and the UI projection horizon. It is not a
     // total turn cap: every new historical combat improvement restarts the no-progress window.
     public const int SetupValueHorizonTurns = 16;

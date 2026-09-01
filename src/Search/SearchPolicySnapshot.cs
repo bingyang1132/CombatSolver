@@ -13,6 +13,8 @@ internal sealed record SearchPolicySnapshot(
     int? DeepBudgetOverrideMilliseconds,
     bool IncludeTurnSetup,
     SolverTheftPolicy? TheftPolicy,
+    LongTermGoals PursuedLongTermGoals,
+    int LongTermGoalHpBudget,
     SearchDiagnosticsSink Diagnostics,
     SearchFramePressureSignal FramePressureSignal,
     SearchMemoryPressureSignal MemoryPressureSignal);

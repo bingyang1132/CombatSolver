@@ -282,6 +282,7 @@ internal sealed class SimulationSnapshot(
     int playerMaxHp,
     int cumulativePlayerHpLost,
     int longTermResourceValue,
+    LongTermGoals longTermGoals,
     int angerCopiesGenerated,
     int projectedPlayerHp,
     int playerBlock,
@@ -350,6 +351,7 @@ internal sealed class SimulationSnapshot(
     public int PlayerMaxHp { get; } = playerMaxHp;
     public int CumulativePlayerHpLost { get; } = cumulativePlayerHpLost;
     public int LongTermResourceValue { get; } = longTermResourceValue;
+    public LongTermGoals LongTermGoals { get; } = longTermGoals;
     public int AngerCopiesGenerated { get; } = angerCopiesGenerated;
     public int ProjectedPlayerHp { get; } = projectedPlayerHp;
     public int PlayerBlock { get; } = playerBlock;
@@ -443,6 +445,7 @@ internal sealed record SolverSnapshot(
     int PlayerMaxHp,
     int CumulativePlayerHpLost,
     int LongTermResourceValue,
+    LongTermGoals LongTermGoals,
     int AngerCopiesGenerated,
     int ProjectedPlayerHp,
     int PlayerBlock,

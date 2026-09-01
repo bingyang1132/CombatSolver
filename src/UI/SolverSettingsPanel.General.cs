@@ -11,6 +11,8 @@ internal sealed partial class SolverSettingsPanel
     private CheckButton _stopOnWorseRecalculation = null!;
     private OptionButton _searchCompletionNotificationPolicy = null!;
     private OptionButton _potionPolicy = null!;
+    private CheckButton _pursueFatalKillBonus = null!;
+    private CheckButton _pursuePersistentGrowth = null!;
     private OptionButton _overlayTheme = null!;
     private HSlider _overlayOpacity = null!;
     private Label _overlayOpacityValue = null!;
@@ -106,6 +108,28 @@ internal sealed partial class SolverSettingsPanel
             "搜索结束通知",
             _searchCompletionNotificationPolicy,
             "搜索成功、失败、停止或结果过期时发送 Windows 系统通知和提示音。可关闭、仅在游戏不处于前台时通知，或始终通知；其他平台不会调用 Windows 接口。");
+        _pursueFatalKillBonus = CreateToggle();
+        _pursueFatalKillBonus.Toggled += OnPursueFatalKillBonusToggled;
+        AddBasicRow(
+            solverGrid,
+            "优先用斩杀牌收尾",
+            _pursueFatalKillBonus,
+            "贪婪之手、狩猎、狂宴用致命一击击杀时有额外收益。开启后，只要多付出的生命不超过预算，"
+            + "求解器会优先选择用这些牌收尾的路线；仍然不会为此放弃胜利或送死。");
+        _pursuePersistentGrowth = CreateToggle();
+        _pursuePersistentGrowth.Toggled += OnPursuePersistentGrowthToggled;
+        AddBasicRow(
+            solverGrid,
+            "优先打出成长牌",
+            _pursuePersistentGrowth,
+            "遗传算法、巨镰、王国资产每次打出都会带来跨战斗的永久成长。开启后，只要多付出的生命不超过预算，"
+            + "求解器会优先选择打出这些牌的路线。只统计牌组里的本体，战斗中生成的复制品不算。");
+        AddBasicRow(solverGrid, "成长目标生命预算", CreateOptionalIntInput(
+            SolverWeights.DefaultLongTermGoalHpBudget,
+            data => data.LongTermGoalHpBudget,
+            (data, value) => data with { LongTermGoalHpBudget = value },
+            0,
+            SolverWeights.MaximumLongTermGoalHpBudget));
         content.AddChild(solverGrid);
 
         content.AddChild(CreateSectionHeading("自动执行"));
@@ -148,6 +172,8 @@ internal sealed partial class SolverSettingsPanel
     private void ReloadGeneralPage(SolverSettingsData data)
     {
         _solverEnabled.ButtonPressed = !data.SolverDisabled;
+        _pursueFatalKillBonus.ButtonPressed = data.PursueFatalKillBonus;
+        _pursuePersistentGrowth.ButtonPressed = data.PursuePersistentGrowth;
         _stopOnCombatEnd.ButtonPressed = data.StopFullAutoOnCombatEnd;
         _stopOnDeathTurn.ButtonPressed = data.StopFullAutoOnDeathTurn;
         _stopOnWorseRecalculation.ButtonPressed = data.StopFullAutoOnWorseRecalculation;
@@ -178,6 +204,12 @@ internal sealed partial class SolverSettingsPanel
         };
         return input;
     }
+
+    private static void OnPursueFatalKillBonusToggled(bool enabled)
+        => SolverSettings.Update(SolverSettings.Current with { PursueFatalKillBonus = enabled });
+
+    private static void OnPursuePersistentGrowthToggled(bool enabled)
+        => SolverSettings.Update(SolverSettings.Current with { PursuePersistentGrowth = enabled });
 
     private OptionButton CreatePotionPolicyInput()
     {

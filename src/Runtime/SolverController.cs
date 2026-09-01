@@ -181,6 +181,8 @@ internal static class SolverController
             UnattendedTestRunner.DeepSearchBudgetOverrideMilliseconds,
             includeTurnSetup,
             theftPolicy,
+            settings.PursuedLongTermGoals,
+            settings.LongTermGoalHpBudget,
             new SearchDiagnosticsSink(
                 message => Entry.Logger.Info(message),
                 message => Entry.Logger.Debug(message)),

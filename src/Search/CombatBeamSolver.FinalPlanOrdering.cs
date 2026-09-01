@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace CombatSolver;
 
 internal sealed partial class CombatBeamSolver
@@ -5,6 +7,8 @@ internal sealed partial class CombatBeamSolver
     private sealed class FinalPlanOrdering(
         SolverPotionPolicy potionPolicy,
         SolverTheftPolicy? theftPolicy,
+        LongTermGoals pursuedLongTermGoals,
+        int longTermGoalHpBudget,
         PotionFreePolicyBaseline? potionFreePolicyBaseline,
         int initialPlayerMaxHp,
         SearchDiagnosticsSink diagnostics,
@@ -37,7 +41,13 @@ internal sealed partial class CombatBeamSolver
                             ? PotionUsePolicy.AdditionalRequiredUseStrategicHpCost(
                                 candidate.Node.PotionStrategicCost)
                             : 0);
+                    // Prefer, not Require: each pursued goal the route actually banked buys a fixed HP
+                    // discount on the two health axes. A route that banks nothing is compared exactly as
+                    // before, and the discount is bounded so it can never outweigh losing the fight.
+                    int pursuitDiscount = longTermGoalHpBudget
+                        * BitOperations.PopCount((uint)(features.LongTermGoals & pursuedLongTermGoals));
                     return (candidate.Node, candidate.Snapshot, candidate.Annotations, Features: features,
+                        PursuitDiscount: pursuitDiscount,
                         FutureSold: sold, BattleSold: battleSold, PotionCount: potionCount, HpDeficit: hpDeficit,
                         StrategicHpDeficit: strategicHpDeficit, PolicyHpDeficit: policyHpDeficit,
                         MaxHpDeficit: maxHpDeficit, HealthResourceCost: healthResourceCost,
@@ -156,8 +166,8 @@ internal sealed partial class CombatBeamSolver
                 .ThenBy(candidate => theftPolicy == SolverTheftPolicy.PreserveResources
                     ? candidate.Features.OutstandingStolenResource
                     : 0)
-                .ThenBy(candidate => candidate.PolicyHpDeficit)
-                .ThenBy(candidate => candidate.HealthResourceCost)
+                .ThenBy(candidate => candidate.PolicyHpDeficit - candidate.PursuitDiscount)
+                .ThenBy(candidate => candidate.HealthResourceCost - candidate.PursuitDiscount)
                 .ThenByDescending(candidate => candidate.Features.LongTermResourceValue)
                 .ThenBy(candidate => candidate.Features.AngerCopiesGenerated)
                 .ThenBy(candidate => CombatBeamSolver.PolicyBoundaryRank(candidate.Features.BoundaryReason))
