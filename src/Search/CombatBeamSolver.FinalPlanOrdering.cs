@@ -235,15 +235,21 @@ internal sealed partial class CombatBeamSolver
                 // Only the player's life is off limits. Deliberately NOT AllEnemiesDead: that means "finished
                 // inside the searched horizon", not "won", and holding a finisher usually pushes the kill past
                 // the horizon. Rejecting those was why the card kept getting spent anyway.
+                // A compliant route may be lethal only when the unconstrained best already is. Equality here was
+                // backwards: it also rejected a compliant route that survives while the unconstrained best dies.
                 bool lethal = candidate.Snapshot.PlayerDead || candidate.Snapshot.ProjectedPlayerHp <= 0;
-                if (selectableIndex < 0 && lethal == unconstrainedLethal)
+                if (selectableIndex < 0 && (!lethal || unconstrainedLethal))
                     selectableIndex = index;
             }
-            string goalOutcome = pursuedLongTermGoals == LongTermGoals.None
-                ? "off"
+            LongTermGoalOutcome goalOutcome = pursuedLongTermGoals == LongTermGoals.None
+                ? LongTermGoalOutcome.Off
                 : selectableIndex < 0
-                    ? compliantCount == 0 ? "no_compliant_route" : "compliant_route_would_die"
-                    : selectableIndex == 0 ? "free" : "paid";
+                    ? compliantCount == 0
+                        ? LongTermGoalOutcome.NoCompliantRoute
+                        : LongTermGoalOutcome.CompliantRouteWouldDie
+                    : selectableIndex == 0
+                        ? LongTermGoalOutcome.Free
+                        : LongTermGoalOutcome.Paid;
             int selectedIndex = pursuedLongTermGoals == LongTermGoals.None || selectableIndex < 0
                 ? 0
                 : selectableIndex;
@@ -340,7 +346,9 @@ internal sealed partial class CombatBeamSolver
                 selectedCandidate.Features.LongTermGoals,
                 longTermGoalHpPrice,
                 longTermGoalPotionPrice,
-                worldLines);
+                worldLines,
+                goalOutcome,
+                compliantCount);
 
             RouteWorldLine BuildWorldLine(int index, string key) => new(
                 selected[index].Node.Actions

@@ -440,6 +440,27 @@ internal sealed record SelectedSearchPlan(
 
 /// <summary>最终路线的只读标量摘要；不持有 CombatPredictionSimulator。</summary>
 /// <summary>
+/// Whether the pursued cross-combat goals were honoured, and if not, why not.
+/// </summary>
+internal enum LongTermGoalOutcome
+{
+    /// <summary>No goal was pursued.</summary>
+    Off,
+
+    /// <summary>Honoured at no extra cost.</summary>
+    Free,
+
+    /// <summary>Honoured; the price is reported.</summary>
+    Paid,
+
+    /// <summary>No route both banked the goals and refrained from wasting their cards.</summary>
+    NoCompliantRoute,
+
+    /// <summary>Compliant routes existed but every one of them killed the player.</summary>
+    CompliantRouteWouldDie,
+}
+
+/// <summary>
 /// One alternative the search already found: the best route among those using exactly this set of potions.
 /// </summary>
 /// <remarks>
@@ -584,6 +605,8 @@ internal sealed class SolverResult
     public required int LongTermGoalHpPrice { get; init; }
     public required int LongTermGoalPotionPrice { get; init; }
     public required IReadOnlyList<RouteWorldLine> WorldLines { get; init; }
+    public required LongTermGoalOutcome LongTermGoalOutcome { get; init; }
+    public required int CompliantRouteCount { get; init; }
     public required int PotionHpRequired { get; init; }
     public required int PotionBranchesRejected { get; init; }
     public required SolverTheftPolicy? TheftPolicy { get; init; }
@@ -702,6 +725,8 @@ internal sealed class SolverResult
             LongTermGoalHpPrice = LongTermGoalHpPrice,
             LongTermGoalPotionPrice = LongTermGoalPotionPrice,
             WorldLines = WorldLines,
+            LongTermGoalOutcome = LongTermGoalOutcome,
+            CompliantRouteCount = CompliantRouteCount,
             PotionHpRequired = remainingPotionCost,
             PotionBranchesRejected = 0,
             TheftPolicy = TheftPolicy,

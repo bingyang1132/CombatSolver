@@ -685,6 +685,8 @@ internal sealed partial class CombatBeamSolver
             LongTermGoalHpPrice = ordering.LongTermGoalHpPrice,
             LongTermGoalPotionPrice = ordering.LongTermGoalPotionPrice,
             WorldLines = ordering.WorldLines,
+            LongTermGoalOutcome = ordering.LongTermGoalOutcome,
+            CompliantRouteCount = ordering.CompliantRouteCount,
             PotionHpRequired = potionHpRequired,
             PotionBranchesRejected = potionBranchesRejected,
             TheftPolicy = _theftPolicy,

@@ -157,6 +157,8 @@ internal static class SolverDiagnostics
             .Append(" potion_hp_saved=").Append(result.PotionHpSaved)
             .Append(" goal_required=").Append(result.RequiredLongTermGoals)
             .Append(" goal_banked=").Append(result.BankedLongTermGoals)
+            .Append(" goal_outcome=").Append(result.LongTermGoalOutcome)
+            .Append(" goal_compliant_routes=").Append(result.CompliantRouteCount)
             .Append(" goal_hp_price=").Append(result.LongTermGoalHpPrice)
             .Append(" goal_potion_price=").Append(result.LongTermGoalPotionPrice)
             .Append(" world_lines=").Append(string.Join(

@@ -265,7 +265,9 @@ internal sealed partial class CombatBeamSolver
         LongTermGoals BankedLongTermGoals,
         int LongTermGoalHpPrice,
         int LongTermGoalPotionPrice,
-        IReadOnlyList<RouteWorldLine> WorldLines);
+        IReadOnlyList<RouteWorldLine> WorldLines,
+        LongTermGoalOutcome LongTermGoalOutcome,
+        int CompliantRouteCount);
 
     private sealed record PendingTurnOutcome(
         SearchNode Node,
