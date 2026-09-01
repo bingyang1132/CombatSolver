@@ -29,6 +29,8 @@ internal static class CorePowerSupport
     {
         CardModel card = playedCard.Preview;
         Creature owner = playedCard.Preview.Owner.Creature;
+        if (card is TheHunt or HandOfGreed or Feed)
+            combat.RecordLongTermGoalCardPlayed(LongTermGoals.FatalKillBonus);
         MonologuePower[] pendingMonologues = combat.CapturePendingMonologues(owner);
         combat.BeginCardPowerApplication(card);
         CardOnPlaySupport.Apply(

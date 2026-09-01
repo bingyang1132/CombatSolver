@@ -283,6 +283,7 @@ internal sealed class SimulationSnapshot(
     int cumulativePlayerHpLost,
     int longTermResourceValue,
     LongTermGoals longTermGoals,
+    LongTermGoals longTermGoalCardsPlayed,
     int angerCopiesGenerated,
     int projectedPlayerHp,
     int playerBlock,
@@ -352,6 +353,7 @@ internal sealed class SimulationSnapshot(
     public int CumulativePlayerHpLost { get; } = cumulativePlayerHpLost;
     public int LongTermResourceValue { get; } = longTermResourceValue;
     public LongTermGoals LongTermGoals { get; } = longTermGoals;
+    public LongTermGoals LongTermGoalCardsPlayed { get; } = longTermGoalCardsPlayed;
     public int AngerCopiesGenerated { get; } = angerCopiesGenerated;
     public int ProjectedPlayerHp { get; } = projectedPlayerHp;
     public int PlayerBlock { get; } = playerBlock;
@@ -437,6 +439,21 @@ internal sealed record SelectedSearchPlan(
     double Score);
 
 /// <summary>最终路线的只读标量摘要；不持有 CombatPredictionSimulator。</summary>
+/// <summary>
+/// One alternative the search already found: the best route among those using exactly this set of potions.
+/// </summary>
+/// <remarks>
+/// These come from the final candidate set of the search that just ran, so each line is the best route the beam
+/// <em>kept</em> for that potion set, not the best route that exists for it. Treat the numbers as a floor on how
+/// well that world line can go, not as an authoritative comparison.
+/// </remarks>
+internal sealed record RouteWorldLine(
+    IReadOnlyList<string> PotionTitles,
+    int HpLost,
+    int PotionCount,
+    bool Won,
+    bool IsSelected);
+
 internal sealed record SolverSnapshot(
     bool HasRisk,
     bool PlayerDead,
@@ -566,6 +583,7 @@ internal sealed class SolverResult
     public required LongTermGoals BankedLongTermGoals { get; init; }
     public required int LongTermGoalHpPrice { get; init; }
     public required int LongTermGoalPotionPrice { get; init; }
+    public required IReadOnlyList<RouteWorldLine> WorldLines { get; init; }
     public required int PotionHpRequired { get; init; }
     public required int PotionBranchesRejected { get; init; }
     public required SolverTheftPolicy? TheftPolicy { get; init; }
@@ -683,6 +701,7 @@ internal sealed class SolverResult
             BankedLongTermGoals = BankedLongTermGoals,
             LongTermGoalHpPrice = LongTermGoalHpPrice,
             LongTermGoalPotionPrice = LongTermGoalPotionPrice,
+            WorldLines = WorldLines,
             PotionHpRequired = remainingPotionCost,
             PotionBranchesRejected = 0,
             TheftPolicy = TheftPolicy,

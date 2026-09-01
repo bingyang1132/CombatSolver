@@ -118,8 +118,9 @@ internal sealed partial class SolverSettingsPanel
             longTermGrid,
             "强制用斩杀牌收尾",
             _pursueFatalKillBonus,
-            "贪婪之手、狩猎、狂宴用致命一击击杀时有额外收益。开启后，求解器会强制选择用这些牌收尾的路线，"
-            + "并在路线面板报出为此多付的生命和药水。仍然不会为此放弃胜利或送死；本场做不到时自动退回。");
+            "贪婪之手、狩猎、狂宴用致命一击击杀时有额外收益。开启后这些牌要么用来斩杀，要么留在手里不打出，"
+            + "不会被当成普通攻击牌用掉，并报出为此多付的生命和药水。仍然不会为此放弃胜利或送死；"
+            + "只有留着牌会输掉或送死时才退回。");
         _pursuePersistentGrowth = CreateToggle();
         _pursuePersistentGrowth.Toggled += OnPursuePersistentGrowthToggled;
         AddBasicRow(

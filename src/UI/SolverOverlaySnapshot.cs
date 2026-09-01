@@ -216,6 +216,27 @@ internal sealed record SolverOverlaySnapshot(
         return $"{source}：{effect} {string.Join('、', choice.Cards.Select(card => card.Title))}";
     }
 
+    private static string FormatWorldLine(RouteWorldLine line)
+    {
+        string label = line.PotionCount == 0
+            ? "不交药"
+            : string.Join('+', line.PotionTitles);
+        string body = $"{label} 掉 {line.HpLost}{(line.Won ? string.Empty : "（未确认胜利）")}";
+        return line.IsSelected ? $"[b]{body}[/b]" : body;
+    }
+
+    private static string FormatGoals(LongTermGoals goals)
+    {
+        if (goals == LongTermGoals.None)
+            return "无";
+        List<string> parts = [];
+        if (goals.HasFlag(LongTermGoals.FatalKillBonus))
+            parts.Add("斩杀收尾");
+        if (goals.HasFlag(LongTermGoals.PersistentGrowth))
+            parts.Add("成长牌");
+        return string.Join('、', parts);
+    }
+
     private static string BuildDetails(
         SolverResult result,
         int displayedTurn,
@@ -235,6 +256,26 @@ internal sealed record SolverOverlaySnapshot(
             $"[color={SolverUiTokens.Palette.TextMutedHex}]防守[/color]  本回合最高可起防 {result.MaxBlockByTurn.GetValueOrDefault(displayedTurn)}  │  路线实际起防 {result.ActualBlockByTurn.GetValueOrDefault(displayedTurn)}  │  卖血 {result.SoldHpByTurn.GetValueOrDefault(displayedTurn)}",
             $"[color={SolverUiTokens.Palette.TextMutedHex}]边界[/color]  {BoundaryText(result.BoundaryReason)}  │  停止洗牌分支 {result.ShuffleBranchesPruned}  │  不可避免战损 {result.UnavoidableHpLost}",
         ];
+        if (result.WorldLines.Count > 1)
+        {
+            detailLines.Insert(
+                4,
+                $"[color={SolverUiTokens.Palette.TextMutedHex}]世界线[/color]  " +
+                string.Join("  │  ", result.WorldLines.Select(FormatWorldLine)) +
+                "  （同一次搜索的候选，非精确重算）");
+        }
+        if (result.RequiredLongTermGoals != LongTermGoals.None
+            || result.BankedLongTermGoals != LongTermGoals.None)
+        {
+            detailLines.Insert(
+                4,
+                $"[color={SolverUiTokens.Palette.TextMutedHex}]跨战斗收益[/color]  " +
+                $"已拿到 {FormatGoals(result.BankedLongTermGoals)}  │  " +
+                $"代价 {result.LongTermGoalHpPrice} HP" +
+                (result.LongTermGoalPotionPrice > 0
+                    ? $" + {result.LongTermGoalPotionPrice} 瓶药水"
+                    : string.Empty));
+        }
         if (result.TheftPolicy is { } theftPolicy)
         {
             detailLines.Insert(

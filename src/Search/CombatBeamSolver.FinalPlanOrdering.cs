@@ -34,6 +34,9 @@ internal sealed partial class CombatBeamSolver
                 ? int.MaxValue / 4
                 : strategicHpCost * 4 / _hpWeightQuarters;
 
+        /// <summary>Distinct potion sets reported as alternatives. Enough to compare, few enough to read.</summary>
+        private const int MaximumWorldLines = 6;
+
         public FinalPlanSelection Select(
             IReadOnlyList<(SearchNode Node, SimulationSnapshot Snapshot, RouteAnnotations Annotations)> evaluated,
             int initialHp,
@@ -211,13 +214,47 @@ internal sealed partial class CombatBeamSolver
                 reachableGoals |= candidate.Features.LongTermGoals;
             LongTermGoals requiredGoals = pursuedLongTermGoals & reachableGoals;
             var unconstrainedCandidate = selected[0];
-            int selectedIndex = requiredGoals == LongTermGoals.None
+            bool unconstrainedLethal = unconstrainedCandidate.Snapshot.PlayerDead
+                || unconstrainedCandidate.Snapshot.ProjectedPlayerHp <= 0;
+            int selectedIndex = pursuedLongTermGoals == LongTermGoals.None
                 ? 0
                 : selected.FindIndex(candidate =>
-                    (candidate.Features.LongTermGoals & requiredGoals) == requiredGoals);
+                    // Bank every goal that some route can reach.
+                    (candidate.Features.LongTermGoals & requiredGoals) == requiredGoals
+                    // And do not spend a pursued goal's card without banking it. Holding Hand of Greed is what the
+                    // player asked for; throwing it away as a plain attack is the outcome they complained about.
+                    && (candidate.Features.LongTermGoalCardsPlayed
+                        & pursuedLongTermGoals
+                        & ~candidate.Features.LongTermGoals) == LongTermGoals.None
+                    // Never trade the win or the player's life for a goal.
+                    && candidate.Features.AllEnemiesDead == unconstrainedCandidate.Features.AllEnemiesDead
+                    && (candidate.Snapshot.PlayerDead || candidate.Snapshot.ProjectedPlayerHp <= 0)
+                        == unconstrainedLethal);
             if (selectedIndex < 0)
                 selectedIndex = 0;
             var selectedCandidate = selected[selectedIndex];
+            List<RouteWorldLine> worldLines = [];
+            string SelectedPotionKey(int index) => string.Join(
+                '+',
+                selected[index].Node.Actions
+                    .Where(action => action.Kind == PlanActionKind.UsePotion)
+                    .Select(action => action.PotionTitle)
+                    .OrderBy(title => title, StringComparer.Ordinal));
+            string selectedKey = SelectedPotionKey(selectedIndex);
+            HashSet<string> seenPotionKeys = [];
+            int firstPotionFreeIndex = -1;
+            for (int index = 0; index < selected.Count; index++)
+            {
+                string key = SelectedPotionKey(index);
+                if (key.Length == 0 && firstPotionFreeIndex < 0)
+                    firstPotionFreeIndex = index;
+                if (!seenPotionKeys.Add(key) || worldLines.Count >= MaximumWorldLines)
+                    continue;
+                worldLines.Add(BuildWorldLine(index, key));
+            }
+            // The no-potion line is the one comparison a player always wants, so keep it even if the cap hit first.
+            if (firstPotionFreeIndex >= 0 && !worldLines.Any(line => line.PotionCount == 0))
+                worldLines.Add(BuildWorldLine(firstPotionFreeIndex, string.Empty));
             int longTermGoalHpPrice = Math.Max(
                 0,
                 selectedCandidate.StrategicHpDeficit - unconstrainedCandidate.StrategicHpDeficit);
@@ -230,6 +267,8 @@ internal sealed partial class CombatBeamSolver
                     $"[CombatSolver/Test] LONG_TERM_GOAL_PRICE pursued={pursuedLongTermGoals} " +
                     $"reachable={reachableGoals} required={requiredGoals} " +
                     $"banked={selectedCandidate.Features.LongTermGoals} " +
+                    $"cards_played={selectedCandidate.Features.LongTermGoalCardsPlayed} " +
+                    $"outcome={(selectedIndex < 0 ? "unsatisfiable" : selectedIndex == 0 ? "free" : "paid")} " +
                     $"hp_price={longTermGoalHpPrice} potion_price={longTermGoalPotionPrice}");
             }
             int potionBranchesRejected = policyCandidates.Count(candidate =>
@@ -285,7 +324,19 @@ internal sealed partial class CombatBeamSolver
                 requiredGoals,
                 selectedCandidate.Features.LongTermGoals,
                 longTermGoalHpPrice,
-                longTermGoalPotionPrice);
+                longTermGoalPotionPrice,
+                worldLines);
+
+            RouteWorldLine BuildWorldLine(int index, string key) => new(
+                selected[index].Node.Actions
+                    .Where(action => action.Kind == PlanActionKind.UsePotion)
+                    .Select(action => action.PotionTitle)
+                    .OrderBy(title => title, StringComparer.Ordinal)
+                    .ToArray(),
+                selected[index].StrategicHpDeficit,
+                selected[index].PotionCount,
+                selected[index].Features.AllEnemiesDead,
+                string.Equals(key, selectedKey, StringComparison.Ordinal));
         }
     }
 }

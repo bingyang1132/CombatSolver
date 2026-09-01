@@ -137,6 +137,7 @@ internal sealed partial class CombatBeamSolver
         score -= cumulativePlayerHpLost * hpWeight;
         int longTermResourceValue = combat.LongTermResourceValue;
         LongTermGoals longTermGoals = combat.LongTermGoals;
+        LongTermGoals longTermGoalCardsPlayed = combat.LongTermGoalCardsPlayed;
         score += longTermResourceValue * SolverWeights.LongTermResourceBeamValue;
         int angerCopiesGenerated = combat.AngerCopiesGenerated;
         score += angerCopiesGenerated * SolverWeights.AngerCopyBeamPenalty;
@@ -289,6 +290,7 @@ internal sealed partial class CombatBeamSolver
             cumulativePlayerHpLost,
             longTermResourceValue,
             longTermGoals,
+            longTermGoalCardsPlayed,
             angerCopiesGenerated,
             projectedHp,
             player.Block,

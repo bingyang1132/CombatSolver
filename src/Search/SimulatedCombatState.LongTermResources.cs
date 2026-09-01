@@ -25,12 +25,22 @@ internal sealed partial class SimulatedCombatState
     private int _longTermResourceValue;
     private int _angerCopiesGenerated;
     private LongTermGoals _longTermGoals;
+    private LongTermGoals _longTermGoalCardsPlayed;
 
     public int LongTermResourceValue => _longTermResourceValue;
     public int AngerCopiesGenerated => _angerCopiesGenerated;
     public LongTermGoals LongTermGoals => _longTermGoals;
 
+    /// <summary>
+    /// Goal categories whose card was played at all, banked or wasted. Requiring a goal means the card must not be
+    /// spent without banking it, which cannot be told from <see cref="LongTermGoals"/> alone: a route that never
+    /// draws Hand of Greed and a route that throws it away as a plain attack both bank nothing.
+    /// </summary>
+    public LongTermGoals LongTermGoalCardsPlayed => _longTermGoalCardsPlayed;
+
     public void RecordLongTermGoal(LongTermGoals goal) => _longTermGoals |= goal;
+
+    public void RecordLongTermGoalCardPlayed(LongTermGoals goal) => _longTermGoalCardsPlayed |= goal;
 
     public void RecordLongTermResource(int value)
     {
