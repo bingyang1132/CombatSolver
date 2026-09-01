@@ -45,8 +45,14 @@ internal static class CardEffectSpecRegistry
         [typeof(Equilibrium)] = [Owner<RetainHandPower>("Equilibrium")],
         [typeof(FlameBarrier)] = [Owner<FlameBarrierPower>("DamageBack")],
         [typeof(FocusedStrike)] = [Owner<FocusedStrikePower>("FocusPower")],
-        [typeof(Glow)] = [Owner<DrawCardsNextTurnPower>(card => card.DynamicVars.Cards.IntValue)],
-        [typeof(GuidingStar)] = [Owner<DrawCardsNextTurnPower>(card => card.DynamicVars.Cards.IntValue)],
+        // LOCAL: Sts2RebalanceBeta moves both draws to the turn the card is played, so the next-turn Power
+        // resolves to 0 and SimulatedCombatState.Apply skips it. See Sts2RebalanceCompat.
+        [typeof(Glow)] = [Owner<DrawCardsNextTurnPower>(card => Sts2RebalanceCompat.IsActive
+            ? 0
+            : card.DynamicVars.Cards.IntValue)],
+        [typeof(GuidingStar)] = [Owner<DrawCardsNextTurnPower>(card => Sts2RebalanceCompat.IsActive
+            ? 0
+            : card.DynamicVars.Cards.IntValue)],
         [typeof(Hegemony)] = [Owner<EnergyNextTurnPower>(card => card.DynamicVars.Energy.IntValue)],
         [typeof(Hyperbeam)] = [Owner<HyperbeamFocusDownPower>("FocusPower")],
         [typeof(Knockdown)] = [Target<KnockdownPower>("KnockdownPower")],

@@ -757,7 +757,10 @@ internal static class AfterCardPlayedMirrors
                 PileType.Hand,
                 1,
                 creator: null);
-            state.Value = WitheringPresencePower._baseCardsLeft;
+            // LOCAL: Sts2RebalanceBeta compatibility. See Sts2RebalanceCompat.
+            state.Value = Sts2RebalanceCompat.IsActive
+                ? Sts2RebalanceCompat.AeonglassCardsBeforeWither
+                : WitheringPresencePower._baseCardsLeft;
         }
         if (context.CombatState is not ICombatPredictionEffectSink effects)
             throw new InvalidOperationException("凋零气场效果缺少可写的预测状态。");

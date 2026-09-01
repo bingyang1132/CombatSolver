@@ -157,7 +157,14 @@ internal static class CardOnPlayMirrors
         registry.Register<Metamorphosis>(CardGenerationCardMirrors.MetamorphosisOnPlay);
         registry.Register<Quasar>(CardGenerationCardMirrors.QuasarOnPlay);
         registry.Register<Splash>(CardGenerationCardMirrors.SplashOnPlay);
-        registry.Register<Stoke>(CardGenerationCardMirrors.StokeOnPlay);
+        // LOCAL: Sts2RebalanceBeta compatibility. See Sts2RebalanceCompat.
+        registry.Register<Stoke>(static (card, context) =>
+        {
+            if (Sts2RebalanceCompat.IsActive)
+                Sts2RebalanceCompat.StokeOnPlay(card, context);
+            else
+                CardGenerationCardMirrors.StokeOnPlay(card, context);
+        });
         registry.Register<WhiteNoise>(CardGenerationCardMirrors.WhiteNoiseOnPlay);
 
         registry.Register<StrikeIronclad>(GeneralCardMirrors.GeneralAttackOnPlay);

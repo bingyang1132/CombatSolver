@@ -152,7 +152,12 @@ internal static class AfterCardGeneratedForCombatMirrors
             context.PreviewCard.Owner == card.Owner &&
             context.PreviewCard.Type == CardType.Status)
         {
-            context.State.FindCard(card)?.MutablePreview.EnergyCost.AddUntilPlayed(-1);
+            // LOCAL: Sts2RebalanceBeta restores the pre-0.110.0 "cost becomes 0" form. See Sts2RebalanceCompat.
+            CardEnergyCost? cost = context.State.FindCard(card)?.MutablePreview.EnergyCost;
+            if (Sts2RebalanceCompat.IsActive)
+                cost?.SetUntilPlayed(0);
+            else
+                cost?.AddUntilPlayed(-1);
         }
     }
 }

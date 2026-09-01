@@ -199,5 +199,7 @@ internal static partial class CardOnPlaySupport
         }
         ApplyBatch042(simulator, combat, playedCard, cardPlay, target, processedEnemyDeaths);
         ApplyBatch043(simulator, combat, playedCard, target, processedEnemyDeaths);
+        // LOCAL: Sts2RebalanceBeta compatibility. See Sts2RebalanceCompat.
+        Sts2RebalanceCompat.CompleteCardOnPlay(simulator, combat, playedCard, target);
     }
 }
