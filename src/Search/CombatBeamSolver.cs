@@ -50,7 +50,6 @@ internal sealed partial class CombatBeamSolver(
     private readonly int? _maximumPotionUses = maximumPotionUses;
     private readonly SolverTheftPolicy? _theftPolicy = policy.TheftPolicy;
     private readonly LongTermGoals _pursuedLongTermGoals = policy.PursuedLongTermGoals;
-    private readonly int _longTermGoalHpBudget = policy.LongTermGoalHpBudget;
     private readonly SolverPotionPolicy _potionPolicy = potionPolicyOverride
         ?? (policy.TheftPolicy == SolverTheftPolicy.PreserveResources
             ? SolverPotionPolicy.Smart
@@ -72,7 +71,6 @@ internal sealed partial class CombatBeamSolver(
         _potionPolicy,
         _theftPolicy,
         _pursuedLongTermGoals,
-        _longTermGoalHpBudget,
         _bossHpRelief,
         potionFreePolicyBaseline,
         root.InitialPlayerMaxHp,

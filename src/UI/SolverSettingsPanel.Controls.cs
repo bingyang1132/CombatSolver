@@ -84,42 +84,6 @@ internal sealed partial class SolverSettingsPanel
         return input;
     }
 
-    private LineEdit CreateOptionalIntInput(
-        int defaultValue,
-        Func<SolverSettingsData, int?> getter,
-        Func<SolverSettingsData, int?, SolverSettingsData> setter,
-        int minimum,
-        int maximum)
-    {
-        LineEdit input = CreateInput(defaultValue.ToString(CultureInfo.InvariantCulture));
-        _reloadInputs.Add(data => input.Text = getter(data) is { } value
-            ? value.ToString(CultureInfo.InvariantCulture)
-            : string.Empty);
-        bool Commit()
-        {
-            string text = input.Text.Trim();
-            if (text.Length == 0)
-            {
-                if (getter(SolverSettings.Current) == null)
-                    return KeepUnchanged(input);
-                return SaveSetting(input, setter(SolverSettings.Current, null), "已保存，下次搜索生效");
-            }
-            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
-                || value < minimum || value > maximum)
-            {
-                ShowInvalid(input, $"请输入 {minimum}–{maximum} 的整数");
-                return false;
-            }
-            if (getter(SolverSettings.Current) is { } current && current == value)
-                return KeepUnchanged(input);
-            return SaveSetting(input, setter(SolverSettings.Current, value), "已保存，下次搜索生效");
-        }
-        input.FocusExited += () => Commit();
-        input.TextSubmitted += _ => Commit();
-        _commitInputs.Add(Commit);
-        return input;
-    }
-
     private LineEdit CreateOptionalDoubleInput(
         double defaultValue,
         Func<SolverSettingsData, double?> getter,

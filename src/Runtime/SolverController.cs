@@ -182,7 +182,6 @@ internal static class SolverController
             includeTurnSetup,
             theftPolicy,
             settings.PursuedLongTermGoals,
-            settings.LongTermGoalHpBudget,
             new SearchDiagnosticsSink(
                 message => Entry.Logger.Info(message),
                 message => Entry.Logger.Debug(message)),

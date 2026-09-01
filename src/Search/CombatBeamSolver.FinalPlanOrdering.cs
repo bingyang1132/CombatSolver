@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace CombatSolver;
 
 internal sealed partial class CombatBeamSolver
@@ -8,7 +6,6 @@ internal sealed partial class CombatBeamSolver
         SolverPotionPolicy potionPolicy,
         SolverTheftPolicy? theftPolicy,
         LongTermGoals pursuedLongTermGoals,
-        int longTermGoalHpBudget,
         BossHpRelief bossHpRelief,
         PotionFreePolicyBaseline? potionFreePolicyBaseline,
         int initialPlayerMaxHp,
@@ -63,13 +60,7 @@ internal sealed partial class CombatBeamSolver
                             ? PotionUsePolicy.AdditionalRequiredUseStrategicHpCost(
                                 candidate.Node.PotionStrategicCost)
                             : 0);
-                    // Prefer, not Require: each pursued goal the route actually banked buys a fixed HP
-                    // discount on the two health axes. A route that banks nothing is compared exactly as
-                    // before, and the discount is bounded so it can never outweigh losing the fight.
-                    int pursuitDiscount = longTermGoalHpBudget
-                        * BitOperations.PopCount((uint)(features.LongTermGoals & pursuedLongTermGoals));
                     return (candidate.Node, candidate.Snapshot, candidate.Annotations, Features: features,
-                        PursuitDiscount: pursuitDiscount,
                         FutureSold: sold, BattleSold: battleSold, PotionCount: potionCount, HpDeficit: hpDeficit,
                         StrategicHpDeficit: strategicHpDeficit, PolicyHpDeficit: policyHpDeficit,
                         MaxHpDeficit: maxHpDeficit, HealthResourceCost: healthResourceCost,
@@ -194,10 +185,8 @@ internal sealed partial class CombatBeamSolver
                 .ThenBy(candidate => theftPolicy == SolverTheftPolicy.PreserveResources
                     ? candidate.Features.OutstandingStolenResource
                     : 0)
-                .ThenBy(candidate =>
-                    (candidate.PolicyHpDeficit - candidate.PursuitDiscount) * _hpWeightQuarters)
-                .ThenBy(candidate =>
-                    (candidate.HealthResourceCost - candidate.PursuitDiscount) * _hpWeightQuarters)
+                .ThenBy(candidate => candidate.PolicyHpDeficit * _hpWeightQuarters)
+                .ThenBy(candidate => candidate.HealthResourceCost * _hpWeightQuarters)
                 .ThenByDescending(candidate => candidate.Features.LongTermResourceValue)
                 .ThenBy(candidate => candidate.Features.AngerCopiesGenerated)
                 .ThenBy(candidate => CombatBeamSolver.PolicyBoundaryRank(candidate.Features.BoundaryReason))
@@ -214,7 +203,35 @@ internal sealed partial class CombatBeamSolver
                         ? "本场药水策略要求至少使用一瓶，但搜索没有找到可执行的用药路线。"
                         : "本场药水策略没有可执行路线。");
             }
-            var selectedCandidate = selected[0];
+            // The ordering is a total order that does not depend on the goal constraint, so the best route that
+            // banks the required goals is simply the first ordered route that banks them. No second ranking, and
+            // no second search: the price of insisting is the gap between that route and the unconstrained best.
+            LongTermGoals reachableGoals = LongTermGoals.None;
+            foreach (var candidate in selected)
+                reachableGoals |= candidate.Features.LongTermGoals;
+            LongTermGoals requiredGoals = pursuedLongTermGoals & reachableGoals;
+            var unconstrainedCandidate = selected[0];
+            int selectedIndex = requiredGoals == LongTermGoals.None
+                ? 0
+                : selected.FindIndex(candidate =>
+                    (candidate.Features.LongTermGoals & requiredGoals) == requiredGoals);
+            if (selectedIndex < 0)
+                selectedIndex = 0;
+            var selectedCandidate = selected[selectedIndex];
+            int longTermGoalHpPrice = Math.Max(
+                0,
+                selectedCandidate.StrategicHpDeficit - unconstrainedCandidate.StrategicHpDeficit);
+            int longTermGoalPotionPrice = Math.Max(
+                0,
+                selectedCandidate.PotionCount - unconstrainedCandidate.PotionCount);
+            if (pursuedLongTermGoals != LongTermGoals.None)
+            {
+                diagnostics.Info(
+                    $"[CombatSolver/Test] LONG_TERM_GOAL_PRICE pursued={pursuedLongTermGoals} " +
+                    $"reachable={reachableGoals} required={requiredGoals} " +
+                    $"banked={selectedCandidate.Features.LongTermGoals} " +
+                    $"hp_price={longTermGoalHpPrice} potion_price={longTermGoalPotionPrice}");
+            }
             int potionBranchesRejected = policyCandidates.Count(candidate =>
                 candidate.PotionCount > 0
                 && (!(PotionUsePolicy.IsEligible(
@@ -264,7 +281,11 @@ internal sealed partial class CombatBeamSolver
                     selectedCandidate.Score),
                 potionBranchesRejected,
                 potionHpSaved,
-                potionHpRequired);
+                potionHpRequired,
+                requiredGoals,
+                selectedCandidate.Features.LongTermGoals,
+                longTermGoalHpPrice,
+                longTermGoalPotionPrice);
         }
     }
 }

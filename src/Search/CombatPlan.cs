@@ -562,6 +562,10 @@ internal sealed class SolverResult
     public required int PotionCount { get; init; }
     public int ProjectedBattlePotionCount => BattlePotionsUsedSoFar + PotionCount;
     public required int PotionHpSaved { get; internal set; }
+    public required LongTermGoals RequiredLongTermGoals { get; init; }
+    public required LongTermGoals BankedLongTermGoals { get; init; }
+    public required int LongTermGoalHpPrice { get; init; }
+    public required int LongTermGoalPotionPrice { get; init; }
     public required int PotionHpRequired { get; init; }
     public required int PotionBranchesRejected { get; init; }
     public required SolverTheftPolicy? TheftPolicy { get; init; }
@@ -675,6 +679,10 @@ internal sealed class SolverResult
             BattlePotionsUsedSoFar = battleDamage.PotionsUsedSoFar,
             PotionCount = remainingPotionCount,
             PotionHpSaved = remainingPotionCount == 0 ? 0 : PotionHpSaved,
+            RequiredLongTermGoals = RequiredLongTermGoals,
+            BankedLongTermGoals = BankedLongTermGoals,
+            LongTermGoalHpPrice = LongTermGoalHpPrice,
+            LongTermGoalPotionPrice = LongTermGoalPotionPrice,
             PotionHpRequired = remainingPotionCost,
             PotionBranchesRejected = 0,
             TheftPolicy = TheftPolicy,

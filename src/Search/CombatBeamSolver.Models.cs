@@ -258,7 +258,11 @@ internal sealed partial class CombatBeamSolver
         FinalPlanCandidate Candidate,
         int PotionBranchesRejected,
         int PotionHpSaved,
-        int PotionHpRequired);
+        int PotionHpRequired,
+        LongTermGoals RequiredLongTermGoals,
+        LongTermGoals BankedLongTermGoals,
+        int LongTermGoalHpPrice,
+        int LongTermGoalPotionPrice);
 
     private sealed record PendingTurnOutcome(
         SearchNode Node,

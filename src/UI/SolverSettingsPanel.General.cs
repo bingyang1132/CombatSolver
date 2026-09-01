@@ -118,22 +118,16 @@ internal sealed partial class SolverSettingsPanel
             longTermGrid,
             "优先用斩杀牌收尾",
             _pursueFatalKillBonus,
-            "贪婪之手、狩猎、狂宴用致命一击击杀时有额外收益。开启后，只要多付出的生命不超过预算，"
-            + "求解器会优先选择用这些牌收尾的路线；仍然不会为此放弃胜利或送死。");
+            "贪婪之手、狩猎、狂宴用致命一击击杀时有额外收益。开启后，求解器会强制选择用这些牌收尾的路线，"
+            + "并在路线面板报出为此多付的生命和药水。仍然不会为此放弃胜利或送死；本场做不到时自动退回。");
         _pursuePersistentGrowth = CreateToggle();
         _pursuePersistentGrowth.Toggled += OnPursuePersistentGrowthToggled;
         AddBasicRow(
             longTermGrid,
             "优先打出成长牌",
             _pursuePersistentGrowth,
-            "遗传算法、巨镰、王国资产每次打出都会带来跨战斗的永久成长。开启后，只要多付出的生命不超过预算，"
-            + "求解器会优先选择打出这些牌的路线。只统计牌组里的本体，战斗中生成的复制品不算。");
-        AddBasicRow(longTermGrid, "成长目标生命预算", CreateOptionalIntInput(
-            SolverWeights.DefaultLongTermGoalHpBudget,
-            data => data.LongTermGoalHpBudget,
-            (data, value) => data with { LongTermGoalHpBudget = value },
-            0,
-            SolverWeights.MaximumLongTermGoalHpBudget));
+            "遗传算法、巨镰、王国资产每次打出都会带来跨战斗的永久成长。开启后，求解器会强制选择打出这些牌的路线，"
+            + "并在路线面板报出为此多付的生命和药水。只统计牌组里的本体，战斗中生成的复制品不算。");
         content.AddChild(longTermGrid);
 
         content.AddChild(CreateSectionHeading("自动执行"));
