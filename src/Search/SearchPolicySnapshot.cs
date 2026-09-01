@@ -14,6 +14,7 @@ internal sealed record SearchPolicySnapshot(
     bool IncludeTurnSetup,
     SolverTheftPolicy? TheftPolicy,
     LongTermGoals PursuedLongTermGoals,
+    IReadOnlySet<int> BannedPotionSlots,
     SearchDiagnosticsSink Diagnostics,
     SearchFramePressureSignal FramePressureSignal,
     SearchMemoryPressureSignal MemoryPressureSignal);
