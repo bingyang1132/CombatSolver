@@ -51,7 +51,7 @@ internal static class SolverOverlay
     private static PanelContainer? _feedbackBanner;
     private static Label? _feedbackBannerLabel;
     private static HBoxContainer? _theftPolicyControls;
-    private static HBoxContainer? _potionBanControls;
+    private static HFlowContainer? _potionBanControls;
     private static string? _renderedPotionBanState;
     private static Button? _preserveResourcesButton;
     private static Button? _letEscapeButton;
@@ -557,7 +557,7 @@ internal static class SolverOverlay
         for (int slot = 0; slot < player!.PotionSlots.Count; slot++)
         {
             if (player.GetPotionAtSlotIndex(slot) is { } potion)
-                slots.Add((slot, potion.Title.ToString()));
+                slots.Add((slot, potion.Title.GetFormattedText()));
         }
         string state = string.Join(
             '|',
@@ -591,7 +591,7 @@ internal static class SolverOverlay
             button.Pressed += () => OnPotionBanPressed(captured);
             SolverUiTokens.ApplyButtonStyle(
                 button,
-                isBanned ? SolverButtonStyle.Secondary : SolverButtonStyle.Positive);
+                isBanned ? SolverButtonStyle.Danger : SolverButtonStyle.Secondary);
             _potionBanControls.AddChild(button);
         }
     }
@@ -1104,10 +1104,11 @@ internal static class SolverOverlay
         _theftPolicyControls.AddChild(_letEscapeButton);
         footer.AddChild(_theftPolicyControls);
 
-        _potionBanControls = new HBoxContainer
+        _potionBanControls = new HFlowContainer
         {
             Name = "PotionBans",
             Visible = false,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             MouseFilter = Control.MouseFilterEnum.Pass,
         };
         _potionBanControls.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
