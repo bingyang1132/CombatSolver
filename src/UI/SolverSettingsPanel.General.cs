@@ -116,7 +116,7 @@ internal sealed partial class SolverSettingsPanel
         _pursueFatalKillBonus.Toggled += OnPursueFatalKillBonusToggled;
         AddBasicRow(
             longTermGrid,
-            "优先用斩杀牌收尾",
+            "强制用斩杀牌收尾",
             _pursueFatalKillBonus,
             "贪婪之手、狩猎、狂宴用致命一击击杀时有额外收益。开启后，求解器会强制选择用这些牌收尾的路线，"
             + "并在路线面板报出为此多付的生命和药水。仍然不会为此放弃胜利或送死；本场做不到时自动退回。");
@@ -124,7 +124,7 @@ internal sealed partial class SolverSettingsPanel
         _pursuePersistentGrowth.Toggled += OnPursuePersistentGrowthToggled;
         AddBasicRow(
             longTermGrid,
-            "优先打出成长牌",
+            "强制打出成长牌",
             _pursuePersistentGrowth,
             "遗传算法、巨镰、王国资产每次打出都会带来跨战斗的永久成长。开启后，求解器会强制选择打出这些牌的路线，"
             + "并在路线面板报出为此多付的生命和药水。只统计牌组里的本体，战斗中生成的复制品不算。");
