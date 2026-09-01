@@ -45,6 +45,7 @@ internal sealed partial class CombatBeamSolver(
     private readonly int _startTurnNumber = root.StartTurnNumber;
     private readonly int _initialEnemyCount = root.Enemies.Count;
     private readonly bool _isActEndingBoss = root.IsActEndingBoss;
+    private readonly BossHpRelief _bossHpRelief = root.BossHpRelief;
     private readonly bool _detailedDiagnostics = policy.DetailedDiagnostics;
     private readonly int? _maximumPotionUses = maximumPotionUses;
     private readonly SolverTheftPolicy? _theftPolicy = policy.TheftPolicy;
@@ -72,6 +73,7 @@ internal sealed partial class CombatBeamSolver(
         _theftPolicy,
         _pursuedLongTermGoals,
         _longTermGoalHpBudget,
+        _bossHpRelief,
         potionFreePolicyBaseline,
         root.InitialPlayerMaxHp,
         policy.Diagnostics,

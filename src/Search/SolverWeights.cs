@@ -70,6 +70,12 @@ internal static class SolverWeights
     public const int BossSoldHpThreshold = 15;
     public const int PotionMinimumHpSaved = 9;
 
+    /// <summary>Potions whose effect is worth roughly twice a baseline potion.</summary>
+    public const int PotionHighValueHpSaved = PotionMinimumHpSaved * 2;
+
+    /// <summary>Potions worth roughly one and a half times a baseline potion. Rounded up from 13.5.</summary>
+    public const int PotionElevatedValueHpSaved = (PotionMinimumHpSaved * 3 + 1) / 2;
+
     /// <summary>
     /// HP a route may pay for each pursued long term goal it banks. Deliberately smaller than
     /// <see cref="PotionMinimumHpSaved"/>: a banked goal is worth less than a potion, and Prefer must never turn
