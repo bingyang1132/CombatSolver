@@ -216,22 +216,37 @@ internal sealed partial class CombatBeamSolver
             var unconstrainedCandidate = selected[0];
             bool unconstrainedLethal = unconstrainedCandidate.Snapshot.PlayerDead
                 || unconstrainedCandidate.Snapshot.ProjectedPlayerHp <= 0;
-            int selectedIndex = pursuedLongTermGoals == LongTermGoals.None
+            int compliantCount = 0;
+            int selectableIndex = -1;
+            for (int index = 0; index < selected.Count; index++)
+            {
+                var candidate = selected[index];
+                // Bank every goal that some route can reach, and never spend a pursued goal's card without
+                // banking it. Holding Hand of Greed is what the player asked for; throwing it away as a plain
+                // attack is the outcome they complained about.
+                bool banksRequired =
+                    (candidate.Features.LongTermGoals & requiredGoals) == requiredGoals;
+                bool wastesNothing = (candidate.Features.LongTermGoalCardsPlayed
+                    & pursuedLongTermGoals
+                    & ~candidate.Features.LongTermGoals) == LongTermGoals.None;
+                if (!banksRequired || !wastesNothing)
+                    continue;
+                compliantCount++;
+                // Only the player's life is off limits. Deliberately NOT AllEnemiesDead: that means "finished
+                // inside the searched horizon", not "won", and holding a finisher usually pushes the kill past
+                // the horizon. Rejecting those was why the card kept getting spent anyway.
+                bool lethal = candidate.Snapshot.PlayerDead || candidate.Snapshot.ProjectedPlayerHp <= 0;
+                if (selectableIndex < 0 && lethal == unconstrainedLethal)
+                    selectableIndex = index;
+            }
+            string goalOutcome = pursuedLongTermGoals == LongTermGoals.None
+                ? "off"
+                : selectableIndex < 0
+                    ? compliantCount == 0 ? "no_compliant_route" : "compliant_route_would_die"
+                    : selectableIndex == 0 ? "free" : "paid";
+            int selectedIndex = pursuedLongTermGoals == LongTermGoals.None || selectableIndex < 0
                 ? 0
-                : selected.FindIndex(candidate =>
-                    // Bank every goal that some route can reach.
-                    (candidate.Features.LongTermGoals & requiredGoals) == requiredGoals
-                    // And do not spend a pursued goal's card without banking it. Holding Hand of Greed is what the
-                    // player asked for; throwing it away as a plain attack is the outcome they complained about.
-                    && (candidate.Features.LongTermGoalCardsPlayed
-                        & pursuedLongTermGoals
-                        & ~candidate.Features.LongTermGoals) == LongTermGoals.None
-                    // Never trade the win or the player's life for a goal.
-                    && candidate.Features.AllEnemiesDead == unconstrainedCandidate.Features.AllEnemiesDead
-                    && (candidate.Snapshot.PlayerDead || candidate.Snapshot.ProjectedPlayerHp <= 0)
-                        == unconstrainedLethal);
-            if (selectedIndex < 0)
-                selectedIndex = 0;
+                : selectableIndex;
             var selectedCandidate = selected[selectedIndex];
             List<RouteWorldLine> worldLines = [];
             string SelectedPotionKey(int index) => string.Join(
@@ -268,7 +283,7 @@ internal sealed partial class CombatBeamSolver
                     $"reachable={reachableGoals} required={requiredGoals} " +
                     $"banked={selectedCandidate.Features.LongTermGoals} " +
                     $"cards_played={selectedCandidate.Features.LongTermGoalCardsPlayed} " +
-                    $"outcome={(selectedIndex < 0 ? "unsatisfiable" : selectedIndex == 0 ? "free" : "paid")} " +
+                    $"candidates={selected.Count} compliant={compliantCount} outcome={goalOutcome} " +
                     $"hp_price={longTermGoalHpPrice} potion_price={longTermGoalPotionPrice}");
             }
             int potionBranchesRejected = policyCandidates.Count(candidate =>
