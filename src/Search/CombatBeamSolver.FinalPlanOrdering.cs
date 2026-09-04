@@ -10,6 +10,7 @@ internal sealed partial class CombatBeamSolver
         SolverTheftPolicy? theftPolicy,
         BossHpRelief bossHpRelief,
         LongTermGoals pursuedLongTermGoals,
+        PostCombatRelicHealProfile postCombatRelicHeal,
         PotionFreePolicyBaseline? potionFreePolicyBaseline,
         int initialPlayerMaxHp,
         int minimumPotionUses,
@@ -73,10 +74,22 @@ internal sealed partial class CombatBeamSolver
                     };
                     int hpDeficit = features.CumulativePlayerHpLost;
                     int maxHpDeficit = Math.Max(0, initialPlayerMaxHp - features.PlayerMaxHp);
+                    bool completeVictory = SolverInterimResultOrdering.IsCompleteVictory(
+                        candidate.Node.ActionCount,
+                        features.AllEnemiesDead,
+                        candidate.Snapshot.PlayerDead,
+                        features.ProjectedPlayerHp);
+                    // Relics that heal on victory pay out after the fight, so their HP never reaches
+                    // RecoveredPlayerHp, yet it carries into the next fight exactly like in-combat healing.
+                    int relicHeal = ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                        postCombatRelicHeal,
+                        completeVictory,
+                        features.PlayerHp,
+                        features.PlayerMaxHp);
                     int strategicHpDeficit = ActEndingBossPolicy.StrategicHpDeficit(
                         hpDeficit,
                         maxHpDeficit,
-                        features.RecoveredPlayerHp,
+                        features.RecoveredPlayerHp + relicHeal,
                         bossHpRelief);
                     int healthResourceCost = initialHp - features.PlayerHp
                         + initialPlayerMaxHp - features.PlayerMaxHp;
@@ -86,11 +99,6 @@ internal sealed partial class CombatBeamSolver
                             ? PotionUsePolicy.AdditionalRequiredUseStrategicHpCost(
                                 optionalPotionStrategicCost)
                             : 0);
-                    bool completeVictory = SolverInterimResultOrdering.IsCompleteVictory(
-                        candidate.Node.ActionCount,
-                        features.AllEnemiesDead,
-                        candidate.Snapshot.PlayerDead,
-                        features.ProjectedPlayerHp);
                     return (candidate.Node, candidate.Snapshot, Features: features,
                         CompleteVictory: completeVictory,
                         CombatEndedTurn: completeVictory ? candidate.Node.Action?.Turn : null,
@@ -138,6 +146,7 @@ internal sealed partial class CombatBeamSolver
                             initialHp,
                             initialPlayerMaxHp,
                             bossHpRelief,
+                            postCombatRelicHeal,
                             theftPolicy) >= 0)
                 {
                     continue;
@@ -423,6 +432,7 @@ internal sealed partial class CombatBeamSolver
         int initialPlayerHp,
         int initialPlayerMaxHp,
         BossHpRelief bossHpRelief,
+        PostCombatRelicHealProfile postCombatRelicHeal,
         SolverTheftPolicy? theftPolicy)
     {
         SimulationSnapshot leftSnapshot = left.Snapshot;
@@ -451,12 +461,22 @@ internal sealed partial class CombatBeamSolver
         comparison = ActEndingBossPolicy.StrategicHpDeficit(
                 leftSnapshot.CumulativePlayerHpLost,
                 Math.Max(0, initialPlayerMaxHp - leftSnapshot.PlayerMaxHp),
-                leftSnapshot.RecoveredPlayerHp,
+                leftSnapshot.RecoveredPlayerHp
+                    + ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                        postCombatRelicHeal,
+                        leftWon,
+                        leftSnapshot.PlayerHp,
+                        leftSnapshot.PlayerMaxHp),
                 bossHpRelief)
             .CompareTo(ActEndingBossPolicy.StrategicHpDeficit(
                 rightSnapshot.CumulativePlayerHpLost,
                 Math.Max(0, initialPlayerMaxHp - rightSnapshot.PlayerMaxHp),
-                rightSnapshot.RecoveredPlayerHp,
+                rightSnapshot.RecoveredPlayerHp
+                    + ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                        postCombatRelicHeal,
+                        rightWon,
+                        rightSnapshot.PlayerHp,
+                        rightSnapshot.PlayerMaxHp),
                 bossHpRelief));
         if (comparison != 0)
             return comparison;
