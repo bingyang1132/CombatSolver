@@ -73,7 +73,11 @@ internal sealed partial class CombatBeamSolver
                     };
                     int hpDeficit = features.CumulativePlayerHpLost;
                     int maxHpDeficit = Math.Max(0, initialPlayerMaxHp - features.PlayerMaxHp);
-                    int strategicHpDeficit = hpDeficit + maxHpDeficit;
+                    int strategicHpDeficit = ActEndingBossPolicy.StrategicHpDeficit(
+                        hpDeficit,
+                        maxHpDeficit,
+                        features.RecoveredPlayerHp,
+                        bossHpRelief);
                     int healthResourceCost = initialHp - features.PlayerHp
                         + initialPlayerMaxHp - features.PlayerMaxHp;
                     int strategicSold = battleSold;
@@ -133,6 +137,7 @@ internal sealed partial class CombatBeamSolver
                             policyCandidates[potionFreeBaselineIndex].Node,
                             initialHp,
                             initialPlayerMaxHp,
+                            bossHpRelief,
                             theftPolicy) >= 0)
                 {
                     continue;
@@ -417,6 +422,7 @@ internal sealed partial class CombatBeamSolver
         SearchNode right,
         int initialPlayerHp,
         int initialPlayerMaxHp,
+        BossHpRelief bossHpRelief,
         SolverTheftPolicy? theftPolicy)
     {
         SimulationSnapshot leftSnapshot = left.Snapshot;
@@ -442,10 +448,16 @@ internal sealed partial class CombatBeamSolver
             if (comparison != 0)
                 return comparison;
         }
-        comparison = (leftSnapshot.CumulativePlayerHpLost
-                + Math.Max(0, initialPlayerMaxHp - leftSnapshot.PlayerMaxHp))
-            .CompareTo(rightSnapshot.CumulativePlayerHpLost
-                + Math.Max(0, initialPlayerMaxHp - rightSnapshot.PlayerMaxHp));
+        comparison = ActEndingBossPolicy.StrategicHpDeficit(
+                leftSnapshot.CumulativePlayerHpLost,
+                Math.Max(0, initialPlayerMaxHp - leftSnapshot.PlayerMaxHp),
+                leftSnapshot.RecoveredPlayerHp,
+                bossHpRelief)
+            .CompareTo(ActEndingBossPolicy.StrategicHpDeficit(
+                rightSnapshot.CumulativePlayerHpLost,
+                Math.Max(0, initialPlayerMaxHp - rightSnapshot.PlayerMaxHp),
+                rightSnapshot.RecoveredPlayerHp,
+                bossHpRelief));
         if (comparison != 0)
             return comparison;
         comparison = (leftWon ? left.Action?.Turn ?? int.MaxValue : int.MaxValue)
