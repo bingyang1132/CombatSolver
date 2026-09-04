@@ -1033,6 +1033,8 @@ internal sealed class SimulationSnapshot(
     int playerMaxHp,
     int cumulativePlayerHpLost,
     int longTermResourceValue,
+    LongTermGoals longTermGoals,
+    LongTermGoals longTermGoalCardsPlayed,
     int angerCopiesGenerated,
     int projectedPlayerHp,
     int playerBlock,
@@ -1109,6 +1111,8 @@ internal sealed class SimulationSnapshot(
     public int PlayerMaxHp { get; } = playerMaxHp;
     public int CumulativePlayerHpLost { get; } = cumulativePlayerHpLost;
     public int LongTermResourceValue { get; } = longTermResourceValue;
+    public LongTermGoals LongTermGoals { get; } = longTermGoals;
+    public LongTermGoals LongTermGoalCardsPlayed { get; } = longTermGoalCardsPlayed;
     public int AngerCopiesGenerated { get; } = angerCopiesGenerated;
     public int ProjectedPlayerHp { get; } = projectedPlayerHp;
     public int PlayerBlock { get; } = playerBlock;
@@ -1216,6 +1220,27 @@ internal sealed record RouteWorldLine(
     bool Won,
     bool IsSelected);
 
+/// <summary>
+/// Whether the pursued cross-combat goals were honoured, and if not, why not.
+/// </summary>
+internal enum LongTermGoalOutcome
+{
+    /// <summary>No goal was pursued.</summary>
+    Off,
+
+    /// <summary>Honoured at no extra cost.</summary>
+    Free,
+
+    /// <summary>Honoured; the price is reported.</summary>
+    Paid,
+
+    /// <summary>No route both banked the goals and refrained from wasting their cards.</summary>
+    NoCompliantRoute,
+
+    /// <summary>Compliant routes existed but every one of them killed the player.</summary>
+    CompliantRouteWouldDie,
+}
+
 /// <summary>最终路线的只读标量摘要；不持有 CombatPredictionSimulator。</summary>
 internal sealed record SolverSnapshot(
     bool HasRisk,
@@ -1225,6 +1250,7 @@ internal sealed record SolverSnapshot(
     int PlayerMaxHp,
     int CumulativePlayerHpLost,
     int LongTermResourceValue,
+    LongTermGoals LongTermGoals,
     int AngerCopiesGenerated,
     int ProjectedPlayerHp,
     int PlayerBlock,
@@ -1371,6 +1397,12 @@ internal sealed class SolverResult
     public int ProjectedBattlePotionCount => BattlePotionsUsedSoFar + PotionCount;
     public required int PotionHpSaved { get; internal set; }
     public required IReadOnlyList<RouteWorldLine> WorldLines { get; init; }
+    public required LongTermGoals RequiredLongTermGoals { get; init; }
+    public required LongTermGoals BankedLongTermGoals { get; init; }
+    public required int LongTermGoalHpPrice { get; init; }
+    public required int LongTermGoalPotionPrice { get; init; }
+    public required LongTermGoalOutcome LongTermGoalOutcome { get; init; }
+    public required int CompliantRouteCount { get; init; }
     public required int PotionHpRequired { get; internal set; }
     public required int PotionBranchesRejected { get; init; }
     public required SolverTheftPolicy? TheftPolicy { get; init; }
@@ -1500,6 +1532,12 @@ internal sealed class SolverResult
             ExplicitPotionCount = remainingExplicitPotionCount,
             PotionHpSaved = remainingPotionCount == 0 ? 0 : PotionHpSaved,
             WorldLines = WorldLines,
+            RequiredLongTermGoals = RequiredLongTermGoals,
+            BankedLongTermGoals = BankedLongTermGoals,
+            LongTermGoalHpPrice = LongTermGoalHpPrice,
+            LongTermGoalPotionPrice = LongTermGoalPotionPrice,
+            LongTermGoalOutcome = LongTermGoalOutcome,
+            CompliantRouteCount = CompliantRouteCount,
             PotionHpRequired = remainingPotionCost,
             PotionBranchesRejected = 0,
             TheftPolicy = TheftPolicy,

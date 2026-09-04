@@ -221,6 +221,8 @@ internal sealed partial class CombatBeamSolver
         int PlayerMaxHp,
         int CumulativePlayerHpLost,
         int LongTermResourceValue,
+        LongTermGoals LongTermGoals,
+        LongTermGoals LongTermGoalCardsPlayed,
         int AngerCopiesGenerated,
         int PlayerBlock,
         int AliveEnemyCount,
@@ -260,6 +262,8 @@ internal sealed partial class CombatBeamSolver
                 snapshot.PlayerMaxHp,
                 snapshot.CumulativePlayerHpLost,
                 snapshot.LongTermResourceValue,
+                snapshot.LongTermGoals,
+                snapshot.LongTermGoalCardsPlayed,
                 snapshot.AngerCopiesGenerated,
                 snapshot.PlayerBlock,
                 snapshot.AliveEnemyCount,
@@ -305,7 +309,13 @@ internal sealed partial class CombatBeamSolver
         int PotionBranchesRejected,
         int PotionHpSaved,
         int PotionHpRequired,
-        IReadOnlyList<RouteWorldLine> WorldLines);
+        IReadOnlyList<RouteWorldLine> WorldLines,
+        LongTermGoals RequiredLongTermGoals,
+        LongTermGoals BankedLongTermGoals,
+        int LongTermGoalHpPrice,
+        int LongTermGoalPotionPrice,
+        LongTermGoalOutcome LongTermGoalOutcome,
+        int CompliantRouteCount);
 
     private sealed record PendingTurnOutcome(
         SearchNode Node,
