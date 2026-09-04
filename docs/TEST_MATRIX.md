@@ -6,6 +6,24 @@
 
 维护时默认使用分层快速回归：普通语义改动跑单效果严格差分；Fork、跨回合历史和续用改动补一个最小两回合或最早复用边界；搜索/部署改动的最终候选才运行必要的完整自动场。快速 unattended 请求总超时不超过 `120` 秒，超时后缩小 fixture 或记为未验证，不在同一轮延长等待。下方完整矩阵是发布门禁和专项审计入口，不是每次修复都要执行的默认清单。
 
+## 0.29.0（开发中）：2026-09-03 问题包硬逻辑修复
+
+| 场景 | 当前结果 | 验证内容 | 日期 |
+| --- | --- | --- | --- |
+| `ISSUE-20260903-MANGLE-COW-FIX` | 通过 | MANGLE + SLITHER 问题包在 `VerifyIncrementalSearch` 下完整回放通过；增量/完整回放的费用 RNG、牌面状态和搜索结果一致。runId `f25dee83d9ba4b039318a4cdef20fbe3`。 | 2026-09-04 |
+| `ISSUE-20260903-MANGLE-CARD-DIFFERENTIAL-FIX` | 通过 | MANGLE 单卡严格差分，验证抽牌后带 SLITHER 的攻击牌仍可正确打出并产生预期效果。runId `b7e5d32dff794ef695c93dbc3123b689`。 | 2026-09-04 |
+| `ISSUE-20260903-QUEEN-HP-MISMATCH-CURRENT` | 通过 | 复用 `0.28.2` Queen 遗物标注问题包的精确根和 RNG；当前源码短搜完成最终路线物化，没有再次出现 HP 标注回放差异。runId `22f3789304284eb49662d378361940e2`。 | 2026-09-04 |
+| `ISSUE-20260903-QUEEN-HAZE-MISMATCH-CURRENT` | 通过 | 复用 `0.28.2` Queen/Haze 问题包的精确根和 RNG；当前源码完成短搜并返回候选，没有再次出现卡牌状态标注差异。runId `5bfc15213c444b449161c1b216ab256d`。 | 2026-09-04 |
+| `ISSUE-20260903-SPITE-REPEAT-CURRENT` | 通过 | 当前原版卡牌严格差分覆盖失血后 Spite 的重复攻击语义，13 个动作检查全部通过。runId `cd97d0160dec44d3b35cae9b05ca328f`。 | 2026-09-04 |
+| `ISSUE-20260903-DEPLOYMENT-DRIFT-RECOVERY` | 已修复，待实时漂移夹具 | 部署时普通计划手牌缺失现在归类为 `DeploymentDrift` 并重新捕获当前根；保留真实执行失败的显式错误。现有 Fork/部署身份边界通过，尚缺在可见游戏中先改动手牌再部署的专用夹具。 | 2026-09-04 |
+| `ISSUE-20260903-OBSCURA-SPAWN-CURRENT` | 通过 | 原生 `THE_OBSCURA_NORMAL` 生成路径短搜覆盖 8 回合和 3 次洗牌；生成新怪物前固定敌人列表快照，没有再次出现 `Collection was modified`。runId `faeec097dee647af8453f9aa00f2c6ab`。 | 2026-09-04 |
+| `ISSUE-20260903-KNOWLEDGE-CURSOR-FIX` | 代码修复，场景未通过 | 结束回合部署不再把 `ApplyKnowledgeCurse` 放入原生选牌游标；当前默认知识恶魔建局只有死亡路线，等待战斗结束超时，因此不记录为行为通过。已有 `PR29-KNOWLEDGE-CURSOR` 结构回归覆盖相同过滤边界。 | 2026-09-04 |
+| `ISSUE-20260903-NATIVE-CHOICE-DRIFT-RECOVERY` | 已修复，待可见漂移夹具 | 原生选牌候选/页面生命周期不一致现在关闭当前页面并请求 `DeploymentDrift` 重捕获；确认按钮等待布局完成后再提交。尚未有专用可见页面先漂移再重捕获的 unattended 证据。 | 2026-09-04 |
+| `ISSUE-20260903-NATIVE-CHOICE-PLAN-SEQUENCE` | 已修复，部分通过 | 原生选牌驱动器在收到计划外请求、计划提前结束或页面要求数量变化时报告选择计划漂移，并由部署层关闭页面后请求 `DeploymentDrift` 重捕获；重复计划仍显式失败。`SCULPTING-STRIKE-CHOICE-151` 严格增量回放和第 2 回合复用通过，runId `a35708eb3bae4aa49ef7769230d59bfa`。 | 2026-09-04 |
+| `ISSUE-20260903-DEPLOYMENT-TURN-DRIFT` | 已修复，待专用时序夹具 | 部署动作检测到玩家回合已结束时现在清理旧路线并按 `DeploymentDrift` 重捕获，不再记为自动执行失败；其他部署异常仍显式失败。 | 2026-09-04 |
+| `ISSUE-20260903-PENDING-CHOICE-HOOK-BOUNDARY` | 已修复，待双监听器夹具 | 洗牌 Hook 在已有待处理选择时停止继续调用监听器，分支消费后再继续；避免同一模拟事件创建冲突选择。 | 2026-09-04 |
+| `ISSUE-20260903-NATIVE-CHOICE-SURFACE-TIMEOUT` | 已修复，待页面消失夹具 | 原生选牌页面或确认按钮等待超时现在按页面漂移关闭并请求 `DeploymentDrift` 重捕获；非原生等待超时仍走原有失败路径。 | 2026-09-04 |
+
 性能指标口径：`selected_*` 只描述最终选中的单个 solver；请求级 `total_expanded_nodes / total_transitions / total_choice_branches`、`total_solver_ms`、分配与 GC 累计对正常、失败和取消的每个 solver 工作区间精确记录一次，包括取消前已发生的部分工作。Smart 有限药水层之间由 coordinator 主动执行的内存整理也计入时间、分配与 GC，但不增加 solver 数；建立开局、层间比较等其他编排工作仍不在这些总值中。因此端到端耗时以请求/阶段外层墙钟为准，峰值内存以进程 `VmHWM` 为准。Smart 多层的取消时点可能令请求总工作量小幅波动，语义验收优先比较胜负、战损、回合和动作路线。峰值工作集是瞬时进程峰值，不能跨阶段相加；`16 GB` NoGC 是运行时请求预算，不等于实际占用或硬上限；NoGC 活跃时 `GC.GetTotalMemory(false)` 不是严格 live-set 测量。
 
 ## 下一版本（开发中）：路线回血计入战损

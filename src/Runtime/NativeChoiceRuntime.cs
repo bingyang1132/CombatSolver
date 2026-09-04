@@ -59,6 +59,18 @@ internal sealed record NativeChoiceTrace(
     int Turn,
     long OccurredAtMilliseconds);
 
+internal class NativeChoicePlanMismatchException(string message)
+    : InvalidOperationException(message);
+
+internal class NativeChoiceSurfaceMismatchException(string message)
+    : InvalidOperationException(message);
+
+internal sealed class NativeChoiceSurfaceTimeoutException(string message)
+    : NativeChoiceSurfaceMismatchException(message);
+
+internal sealed class NativeChoicePlanNotRequestedException(string message)
+    : NativeChoicePlanMismatchException(message);
+
 internal static class NativeChoiceRuntime
 {
     private static readonly MethodInfo CancelHandSelectionMethod = AccessTools.Method(
@@ -171,6 +183,12 @@ internal static class NativeChoiceRuntime
         Entry.Logger.Info(
             "[CombatSolver/Test] NATIVE_CHOICE_CANCELED reason=scene_exit surface=Hand");
         return true;
+    }
+
+    internal static void CancelActiveHandSelection()
+    {
+        if (NPlayerHand.Instance is { IsInCardSelection: true } hand)
+            CancelHandSelectionMethod.Invoke(hand, null);
     }
 
     internal static void RecordTrace(
@@ -379,6 +397,14 @@ internal sealed class NativeChoiceSession : IDisposable
         _firstSurfaceLock = null;
     }
 
+    public void CancelVisibleSurfaceForReplan()
+    {
+        NativeChoiceSurface.Cancel(_firstVisibleRequest.Task.IsCompletedSuccessfully
+            ? _firstVisibleRequest.Task.Result.Surface
+            : null);
+        ReleaseVisibleSurface();
+    }
+
     public async Task LockVisibleSurfaceForSearchAsync(NGame host, CancellationToken token)
     {
         NativeChoiceRequest request = await _firstVisibleRequest.Task.WaitAsync(token);
@@ -434,7 +460,7 @@ internal sealed class NativeChoiceSession : IDisposable
 
             if (planIndex >= plans.Count)
             {
-                throw new InvalidOperationException(
+                throw new NativeChoicePlanNotRequestedException(
                     $"原生选牌会话 {Owner} 收到计划外选择：{request.SourceId}/{request.Surface}。");
             }
 
@@ -486,7 +512,7 @@ internal sealed class NativeChoiceSession : IDisposable
         if (planIndex != plans.Count)
         {
             PlanCardChoice next = plans[planIndex];
-            throw new InvalidOperationException(
+            throw new NativeChoicePlanNotRequestedException(
                 $"原生选牌会话 {Owner} 仍有 {plans.Count - planIndex} 个计划没有被游戏请求；" +
                 $"下一个={next.SourceId}/{next.Effect}/{next.ContextId}。");
         }
@@ -517,7 +543,7 @@ internal sealed class NativeChoiceSession : IDisposable
                     .FirstOrDefault();
             if (card == null)
             {
-                throw new InvalidOperationException(
+                throw new NativeChoicePlanMismatchException(
                     $"原生选牌页面找不到 {token.CardId}+{token.UpgradeLevel}#{token.OptionOccurrence}；" +
                     $"观测候选={(request.ObservedOptions == null ? "-" : string.Join(',', request.ObservedOptions.Select(option => option.StateKey)))}；" +
                     $"当前候选={string.Join(',', request.Options.Select(CardChoiceSupport.ChoiceCardKey))}。");
@@ -529,8 +555,9 @@ internal sealed class NativeChoiceSession : IDisposable
 
         if (selected.Count < request.MinSelect || selected.Count > request.MaxSelect)
         {
-            throw new InvalidOperationException(
-                $"原生选牌计划选择 {selected.Count} 张，页面要求 {request.MinSelect}..{request.MaxSelect} 张。");
+            throw new NativeChoicePlanMismatchException(
+                $"原生选牌页面要求选择 {request.MinSelect}..{request.MaxSelect} 张，" +
+                $"当前计划选择 {selected.Count} 张。");
         }
         return selected;
     }
@@ -650,7 +677,7 @@ internal static class NativeChoiceSurface
             }
             if (System.Environment.TickCount64 >= deadline)
             {
-                throw new TimeoutException(
+                throw new NativeChoiceSurfaceTimeoutException(
                     $"30 秒内没有出现原生选牌页面 {request.Surface}（来源 {request.SourceId}）。");
             }
             await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -711,7 +738,8 @@ internal static class NativeChoiceSurface
             throw new InvalidOperationException($"原生三选一页面计划选择了 {selected.Count} 张牌。");
         NCardHolder holder = Descendants<NCardHolder>(surface)
             .FirstOrDefault(candidate => ReferenceEquals(candidate.CardModel, selected[0]))
-            ?? throw new InvalidOperationException($"原生三选一页面没有 {selected[0].Id.Entry} 的卡牌节点。");
+            ?? throw new NativeChoicePlanMismatchException(
+                $"原生三选一页面没有 {selected[0].Id.Entry} 的卡牌节点。");
         holder.EmitSignal(NCardHolder.SignalName.Pressed, holder);
     }
 
@@ -738,8 +766,15 @@ internal static class NativeChoiceSurface
         if (request.RequireManualConfirmation)
         {
             NConfirmButton confirm = surface.GetNode<NConfirmButton>("%Confirm");
-            if (!confirm.IsEnabled)
-                throw new InvalidOperationException("原生网格页面选择完成后确认按钮仍不可用。");
+            await WaitForConfirmationAsync(
+                host,
+                confirm,
+                () => surface.IsInsideTree()
+                    && surface is CanvasItem canvas
+                    && canvas.IsVisibleInTree(),
+                "原生网格页面在选择完成后关闭，确认计划无法提交。",
+                "原生网格页面选择完成后确认按钮在 30 秒内仍不可用。",
+                token);
             confirm.EmitSignal(NClickableControl.SignalName.Released, confirm);
         }
     }
@@ -771,7 +806,7 @@ internal static class NativeChoiceSurface
                 return holder;
         }
 
-        throw new InvalidOperationException(
+        throw new NativeChoicePlanMismatchException(
             $"原生网格页面滚动完整个卡组后仍没有 {card.Id.Entry} 的卡牌节点。");
     }
 
@@ -786,7 +821,8 @@ internal static class NativeChoiceSurface
         foreach (CardModel card in selected)
         {
             NCardHolder holder = hand.GetCardHolder(card)
-                ?? throw new InvalidOperationException($"原生手牌选择没有 {card.Id.Entry} 的卡牌节点。");
+                ?? throw new NativeChoicePlanMismatchException(
+                    $"原生手牌选择没有 {card.Id.Entry} 的卡牌节点。");
             holder.EmitSignal(NCardHolder.SignalName.Pressed, holder);
             token.ThrowIfCancellationRequested();
             await WaitMillisecondsAsync(host, MultiSelectStepMilliseconds, token);
@@ -798,9 +834,34 @@ internal static class NativeChoiceSurface
             return;
         }
         NConfirmButton confirm = hand.GetNode<NConfirmButton>("%SelectModeConfirmButton");
-        if (!confirm.IsEnabled)
-            throw new InvalidOperationException("原生手牌选择完成后确认按钮仍不可用。");
+        await WaitForConfirmationAsync(
+            host,
+            confirm,
+            () => hand.IsInsideTree() && hand.IsInCardSelection,
+            "原生手牌选择页面在确认前关闭，确认计划无法提交。",
+            "原生手牌选择完成后确认按钮在 30 秒内仍不可用。",
+            token);
         confirm.EmitSignal(NClickableControl.SignalName.Released, confirm);
+    }
+
+    private static async Task WaitForConfirmationAsync(
+        NGame host,
+        NConfirmButton confirm,
+        Func<bool> surfaceIsActive,
+        string closedMessage,
+        string timeoutMessage,
+        CancellationToken token)
+    {
+        long deadline = System.Environment.TickCount64 + SurfaceTimeoutMilliseconds;
+        while (!confirm.IsEnabled)
+        {
+            token.ThrowIfCancellationRequested();
+            if (!surfaceIsActive())
+                throw new NativeChoiceSurfaceMismatchException(closedMessage);
+            if (System.Environment.TickCount64 >= deadline)
+                throw new NativeChoiceSurfaceTimeoutException(timeoutMessage);
+            await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
     }
 
     private static async Task WaitMillisecondsAsync(
@@ -814,6 +875,23 @@ internal static class NativeChoiceSurface
             token.ThrowIfCancellationRequested();
             await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
         }
+    }
+
+    public static void Cancel(NativeChoiceSurfaceKind? kind)
+    {
+        if (kind is NativeChoiceSurfaceKind.Hand or NativeChoiceSurfaceKind.HandUpgrade)
+        {
+            NativeChoiceRuntime.CancelActiveHandSelection();
+            return;
+        }
+
+        if (kind is not { } surfaceKind
+            || FindSurface(surfaceKind) is not IOverlayScreen screen
+            || NOverlayStack.Instance is not { } stack)
+        {
+            return;
+        }
+        stack.Remove(screen);
     }
 
     private static Node? FindSurface(NativeChoiceSurfaceKind kind)

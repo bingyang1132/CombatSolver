@@ -2386,7 +2386,12 @@ internal static class SolverController
                 // A card can advance the turn directly or through a nested auto-play, so its
                 // next-turn choices belong to this native UI session.
                 if (action.EndsPlayerTurn && action.TurnStartChoices is { Count: > 0 })
-                    actionChoices.AddRange(action.TurnStartChoices);
+                {
+                    // Knowledge Demon curses are consumed directly by the enemy-turn resolver,
+                    // not by the native choice cursor used for card deployment.
+                    actionChoices.AddRange(action.TurnStartChoices
+                        .Where(choice => choice.Effect != PlanChoiceEffect.ApplyKnowledgeCurse));
+                }
                 if (actionChoices.Count > 0)
                 {
                     Entry.Logger.Info(
@@ -2464,7 +2469,20 @@ internal static class SolverController
                     DeployedCardIdsForTesting.Add(card.Id.Entry);
                     Entry.Logger.Info($"[CombatSolver/Test] DEPLOY_ACTION turn={turn} card={action.CardId} target_index={action.TargetIndex} target_combat_id={action.TargetCombatId?.ToString() ?? "-"} choice={action.Choice?.Effect.ToString() ?? "-"}");
                 }
-                await choiceSession.AwaitProducerAndCompleteAsync(actionCompletion);
+                try
+                {
+                    await choiceSession.AwaitProducerAndCompleteAsync(actionCompletion);
+                }
+                catch (NativeChoicePlanMismatchException)
+                {
+                    choiceSession.CancelVisibleSurfaceForReplan();
+                    throw;
+                }
+                catch (NativeChoiceSurfaceMismatchException)
+                {
+                    choiceSession.CancelVisibleSurfaceForReplan();
+                    throw;
+                }
                 if (measureDeploymentTiming)
                 {
                     Entry.Logger.Info(
@@ -2556,6 +2574,7 @@ internal static class SolverController
                 token.ThrowIfCancellationRequested();
                 PlanCardChoice[] endTurnChoices = plannedEndTurn.TurnStartChoices?
                     .Where(choice => choice.Timing is PlanChoiceTiming.PlayerTurnEnd or PlanChoiceTiming.EnemyTurn)
+                    .Where(choice => choice.Effect != PlanChoiceEffect.ApplyKnowledgeCurse)
                     .ToArray() ?? [];
                 if (endTurnChoices.Length > 0)
                 {
@@ -2569,7 +2588,20 @@ internal static class SolverController
                     choiceSession.SetPlanAndStartDriving(host, endTurnChoices, token);
                     CombatManager.Instance.OnEndedTurnLocally();
                     RunManager.Instance.ActionQueueSynchronizer.RequestEnqueue(new EndPlayerTurnAction(player, turn));
-                    await choiceSession.WaitForAllPlansConsumedAsync(token);
+                    try
+                    {
+                        await choiceSession.WaitForAllPlansConsumedAsync(token);
+                    }
+                    catch (NativeChoicePlanMismatchException)
+                    {
+                        choiceSession.CancelVisibleSurfaceForReplan();
+                        throw;
+                    }
+                    catch (NativeChoiceSurfaceMismatchException)
+                    {
+                        choiceSession.CancelVisibleSurfaceForReplan();
+                        throw;
+                    }
                     await choiceSession.CompleteAndDetachAsync();
                 }
                 else
@@ -2608,6 +2640,58 @@ internal static class SolverController
         catch (OperationCanceledException)
         {
             Entry.Logger.Info($"[CombatSolver/Test] DEPLOY_CANCELED turn={turn}");
+        }
+        catch (InvalidOperationException ex) when (IsMissingDeploymentCard(ex))
+        {
+            _combat.ContinuationSource = null;
+            CompleteDeployment(deployment);
+            Entry.Logger.Warn(
+                $"[CombatSolver/Test] DEPLOY_REPLAN turn={turn} reason=card_missing " +
+                $"message={ex.Message}");
+            RequestSearch(
+                host,
+                state,
+                SearchReason.DeploymentDrift,
+                deployWhenReady: !_combat.FullAutoEnabled);
+        }
+        catch (InvalidOperationException ex) when (IsDeploymentTurnDrift(ex))
+        {
+            _combat.ContinuationSource = null;
+            CompleteDeployment(deployment);
+            Entry.Logger.Warn(
+                $"[CombatSolver/Test] DEPLOY_REPLAN turn={turn} reason=turn_drift " +
+                $"message={ex.Message}");
+            RequestSearch(
+                host,
+                state,
+                SearchReason.DeploymentDrift,
+                deployWhenReady: !_combat.FullAutoEnabled);
+        }
+        catch (NativeChoicePlanMismatchException ex)
+        {
+            _combat.ContinuationSource = null;
+            CompleteDeployment(deployment);
+            Entry.Logger.Warn(
+                $"[CombatSolver/Test] DEPLOY_REPLAN turn={turn} reason=native_choice_drift " +
+                $"message={ex.Message}");
+            RequestSearch(
+                host,
+                state,
+                SearchReason.DeploymentDrift,
+                deployWhenReady: !_combat.FullAutoEnabled);
+        }
+        catch (NativeChoiceSurfaceMismatchException ex)
+        {
+            _combat.ContinuationSource = null;
+            CompleteDeployment(deployment);
+            Entry.Logger.Warn(
+                $"[CombatSolver/Test] DEPLOY_REPLAN turn={turn} reason=native_choice_surface_closed " +
+                $"message={ex.Message}");
+            RequestSearch(
+                host,
+                state,
+                SearchReason.DeploymentDrift,
+                deployWhenReady: !_combat.FullAutoEnabled);
         }
         catch (Exception ex)
         {
@@ -2667,6 +2751,16 @@ internal static class SolverController
                 $"部署时找不到手牌 {action.CardId}#{action.CardOccurrence}；" +
                 $"当前手牌={string.Join(',', hand.Select(card => card.Id.Entry))}。");
     }
+
+    private static bool IsMissingDeploymentCard(InvalidOperationException exception)
+        => exception.Message.StartsWith("部署时找不到计划中的手牌状态 ", StringComparison.Ordinal)
+            || exception.Message.StartsWith("部署时找不到手牌 ", StringComparison.Ordinal);
+
+    private static bool IsDeploymentTurnDrift(InvalidOperationException exception)
+        => string.Equals(
+            exception.Message,
+            "部署途中已不再是原玩家回合。",
+            StringComparison.Ordinal);
 
     private static async Task<GameAction> EnqueueAndCaptureActionAsync(
         Func<GameAction, bool> matches,
